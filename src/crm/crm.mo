@@ -13,13 +13,14 @@ import Time "mo:base/Time";
 actor class CRM(_name : Text, _creator: Principal) {
     
     private stable var partnerEntries: [(Text, Text)] = [];
+    private stable var partnerDetailEntries: [(Text, [Text])] = [];
     private stable var leadEntries: [(Text, [Text])] = [];
     private stable var leadStatusEntries: [(Text, Text)] = [];
     private stable var opportunityEntries: [(Text, Text)] = [];
     private stable var opportunityDetailEntries: [(Text, [Text])] = [];
     private stable var accountEntries: [(Text, Text)] = [];
     private stable var accountDetailEntries: [(Text, [Text])] = [];
-    private stable var contactEntries: [(Text, [Text])] = [];
+    private stable var contactEntries: [(Text, Text)] = [];
     private stable var contactDetailEntries: [(Text, [Text])] = [];
     private stable var dealEntries: [(Text, Text)] = [];
     private stable var dealDetailEntries: [(Text, [Text])] = [];
@@ -29,6 +30,7 @@ actor class CRM(_name : Text, _creator: Principal) {
     private stable var leadCount: Nat = 0;
 
     private let partners : HashMap.HashMap<Text, Text> = HashMap.fromIter<Text, Text>(partnerEntries.vals(), 10, Text.equal, Text.hash);
+    private let partnerDetails : HashMap.HashMap<Text, [Text]> = HashMap.fromIter<Text, [Text]>(partnerDetailEntries.vals(), 10, Text.equal, Text.hash);
 
     private let leads : HashMap.HashMap<Text, [Text]> = HashMap.fromIter<Text, [Text]>(leadEntries.vals(), 10, Text.equal, Text.hash);
     private let leadStatus : HashMap.HashMap<Text, Text> = HashMap.fromIter<Text, Text>(leadStatusEntries.vals(), 10, Text.equal, Text.hash);
@@ -36,7 +38,7 @@ actor class CRM(_name : Text, _creator: Principal) {
     private let accounts : HashMap.HashMap<Text, Text> = HashMap.fromIter<Text, Text>(accountEntries.vals(), 10, Text.equal, Text.hash);
     private let accountDetails : HashMap.HashMap<Text, [Text]> = HashMap.fromIter<Text, [Text]>(accountDetailEntries.vals(), 10, Text.equal, Text.hash);
 
-    private let contacts : HashMap.HashMap<Text, [Text]> = HashMap.fromIter<Text, [Text]>(contactEntries.vals(), 10, Text.equal, Text.hash);
+    private let contacts : HashMap.HashMap<Text, Text> = HashMap.fromIter<Text, Text>(contactEntries.vals(), 10, Text.equal, Text.hash);
     private let contactDetails : HashMap.HashMap<Text, [Text]> = HashMap.fromIter<Text, [Text]>(contactDetailEntries.vals(), 10, Text.equal, Text.hash);
 
     private let opportunities : HashMap.HashMap<Text, Text> = HashMap.fromIter<Text, Text>(opportunityEntries.vals(), 10, Text.equal, Text.hash);
@@ -51,6 +53,10 @@ actor class CRM(_name : Text, _creator: Principal) {
 
     public shared func getPartner(pid : Text) : async ?Text {
         return partners.get(pid);
+    };
+
+    public shared func getPartnerDetails(pid : Text) : async ?[Text] {
+        return partnerDetails.get(pid);
     };
 
     public shared func getOpportunityByLead(lid : Text) : async ?Text {
@@ -110,7 +116,7 @@ actor class CRM(_name : Text, _creator: Principal) {
         var oid_new = lid # "__op"; 
         var opp = Option.get(opportunities.get(lid), "");
         var oppDt = Option.get(opportunityDetails.get(oid_new), []);
-        if (opp != "" or oppDt.size() == 0){
+        if (opp != "" or oppDt.size() != 0){
             return null;
         };
         
@@ -121,6 +127,62 @@ actor class CRM(_name : Text, _creator: Principal) {
 
         
         return ?oid_new;
+    };
+
+    public func createContactFromOpportunity(data: [Text], lid: Text): async ?Text {
+        var oid = lid # "__op";
+        var ld = Option.get(leadStatus.get(lid), "");
+        if (ld != "oppty"){
+            return null;
+        };
+
+        var op = Option.get(opportunities.get(oid), "");
+        if (op == ""){
+            return null;
+        };
+
+        var cid_new = lid # "__co"; 
+        var con = Option.get(contacts.get(oid), "");
+        var conDt = Option.get(contactDetails.get(cid_new), []);
+        if (con != "" or conDt.size() != 0){
+            return null;
+        };
+        
+        contacts.put(oid, cid_new);
+        contactDetails.put(cid_new, data);
+        let _res = leadStatus.replace(lid, "cntct");
+        
+
+        
+        return ?cid_new;
+    };
+
+    public func createAccountFromOpportunity(data: [Text], lid: Text): async ?Text {
+        var oid = lid # "__op";
+        var ld = Option.get(leadStatus.get(lid), "");
+        if (ld != "cntct"){
+            return null;
+        };
+
+        var op = Option.get(opportunities.get(oid), "");
+        if (op == ""){
+            return null;
+        };
+        var cid = lid # "__co";
+        var aid_new = lid # "__ac"; 
+        var acc = Option.get(accounts.get(cid), "");
+        var accDt = Option.get(accountDetails.get(aid_new), []);
+        if (acc != "" or accDt.size() != 0){
+            return null;
+        };
+        
+        accounts.put(cid, aid_new);
+        accountDetails.put(aid_new, data);
+        let _res = leadStatus.replace(lid, "cntct+");
+        
+
+        
+        return ?aid_new;
     };
 
     public func createDeal(data: [Text], oid: Text): async ?Text {
@@ -147,6 +209,7 @@ actor class CRM(_name : Text, _creator: Principal) {
 
     system func preupgrade() {
         partnerEntries := Iter.toArray(partners.entries());
+        partnerDetailEntries := Iter.toArray(partnerDetails.entries());
         opportunityEntries := Iter.toArray(opportunities.entries());
         opportunityDetailEntries := Iter.toArray(opportunityDetails.entries());
         leadEntries := Iter.toArray(leads.entries());
@@ -162,6 +225,7 @@ actor class CRM(_name : Text, _creator: Principal) {
 
     system func postupgrade() {
         partnerEntries := [];
+        partnerDetailEntries := [];
         opportunityEntries := [];
         opportunityDetailEntries := [];
         dealEntries := [];
