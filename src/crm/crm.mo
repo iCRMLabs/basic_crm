@@ -107,6 +107,17 @@ actor class CRM(_name : Text, _creator: Principal) {
         return new_lid;
     };
 
+    public func updateLead(data: [Text], lid: Text): async Bool {
+        var ld = Option.get(leads.get(lid), []);
+        if (ld.size() == 0){
+            return false;
+        };
+        
+        let _res = leads.replace(lid, data);
+        
+        return true;
+    };
+
     public func createOpportunityFromLead(data: [Text], lid: Text): async ?Text {
         
         var ld = Option.get(leadStatus.get(lid), "");
@@ -127,6 +138,22 @@ actor class CRM(_name : Text, _creator: Principal) {
 
         
         return ?oid_new;
+    };
+
+
+    public func updateOpportunity(data: [Text], oid: Text): async Bool {
+        
+        var op = Option.get(opportunityDetails.get(oid), []);
+        if (op.size() == 0){
+            return false;
+        };
+         
+       
+        
+        let _res = opportunityDetails.replace(oid, data);
+         
+       
+        return true;
     };
 
     public func createContactFromOpportunity(data: [Text], lid: Text): async ?Text {
@@ -205,7 +232,18 @@ actor class CRM(_name : Text, _creator: Principal) {
         return ?did_new;
     };
 
-    
+    public func updateDeal(data: [Text], did: Text): async Bool {
+        
+        var dl = Option.get(dealDetails.get(did), []);
+        if (dl.size() != 0){
+            return false;
+        };
+       
+        
+        let _res = dealDetails.replace(did, data); 
+       
+        return true;
+    };    
 
     system func preupgrade() {
         partnerEntries := Iter.toArray(partners.entries());
