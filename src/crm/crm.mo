@@ -156,6 +156,36 @@ actor class CRM(_name : Text, _creator: Principal) {
         return true;
     };
 
+
+    // deletes an opportunity and erases all dependencies recursively
+    public func deleteOpportunity(lid: Text): async Bool {
+        
+        var ld = Option.get(leadStatus.get(lid), "");
+        if (ld == ""){
+            return false;
+        };
+        var oid = lid # "__op"; 
+        var opp = Option.get(opportunities.get(lid), "");
+        var oppDt = Option.get(opportunityDetails.get(oid), []);
+        if (opp == "" or oppDt.size() == 0){
+            return false;
+        };
+        var cid = lid # "__co";
+        var aid = lid # "__ac";
+        var did = oid # "__dl";
+        var _res = opportunities.remove(lid);
+        var _res2 = opportunityDetails.remove(oid);
+        var _res3 = leadStatus.replace(lid, "lost");
+        var _res4 = contacts.remove(oid);
+        var _res5 = contactDetails.remove(cid);
+        var _res6 = accounts.remove(oid);
+        var _res7 = accountDetails.remove(aid);
+        var _res8 = deals.remove(oid);
+        var _res9 = dealDetails.remove(did); 
+        
+        return true;
+    };
+
     public func createContactFromOpportunity(data: [Text], lid: Text): async ?Text {
         var oid = lid # "__op";
         var ld = Option.get(leadStatus.get(lid), "");
@@ -184,6 +214,24 @@ actor class CRM(_name : Text, _creator: Principal) {
         return ?cid_new;
     };
 
+    public func updateContact(data: [Text], cid: Text): async Bool {
+    
+        var ct = Option.get(contactDetails.get(cid), []);
+        if (ct.size() == 0){
+            return false;
+        };
+
+        
+        
+        
+        let _res = contactDetails.replace(cid, data);
+        
+        
+
+        
+        return true;
+    };
+
     public func createAccountFromOpportunity(data: [Text], lid: Text): async ?Text {
         var oid = lid # "__op";
         var ld = Option.get(leadStatus.get(lid), "");
@@ -210,6 +258,24 @@ actor class CRM(_name : Text, _creator: Principal) {
 
         
         return ?aid_new;
+    };
+
+    public func updateAccount(data: [Text], aid: Text): async Bool {
+    
+        var ac = Option.get(accountDetails.get(aid), []);
+        if (ac.size() == 0){
+            return false;
+        };
+
+        
+        
+        
+        let _res = accountDetails.replace(aid, data);
+        
+        
+
+        
+        return true;
     };
 
     public func createDeal(data: [Text], oid: Text): async ?Text {
