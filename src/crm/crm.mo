@@ -12,8 +12,7 @@ import Time "mo:base/Time";
 
 actor class CRM(_name : Text, _creator: Principal) {
     
-    private stable var partnerEntries: [(Text, Text)] = [];
-    private stable var partnerDetailEntries: [(Text, [Text])] = [];
+    private stable var partnerEntries: [(Text, [Text])] = [];
     private stable var leadEntries: [(Text, [Text])] = [];
     private stable var leadStatusEntries: [(Text, Text)] = [];
     private stable var opportunityEntries: [(Text, Text)] = [];
@@ -24,13 +23,11 @@ actor class CRM(_name : Text, _creator: Principal) {
     private stable var contactDetailEntries: [(Text, [Text])] = [];
     private stable var dealEntries: [(Text, Text)] = [];
     private stable var dealDetailEntries: [(Text, [Text])] = [];
-    //private stable var partnerEntries: [(Text, Text)] = [];
 
     private stable var partnerCount: Nat = 0;
     private stable var leadCount: Nat = 0;
 
-    private let partners : HashMap.HashMap<Text, Text> = HashMap.fromIter<Text, Text>(partnerEntries.vals(), 10, Text.equal, Text.hash);
-    private let partnerDetails : HashMap.HashMap<Text, [Text]> = HashMap.fromIter<Text, [Text]>(partnerDetailEntries.vals(), 10, Text.equal, Text.hash);
+    private let partners : HashMap.HashMap<Text, [Text]> = HashMap.fromIter<Text, [Text]>(partnerEntries.vals(), 10, Text.equal, Text.hash);
 
     private let leads : HashMap.HashMap<Text, [Text]> = HashMap.fromIter<Text, [Text]>(leadEntries.vals(), 10, Text.equal, Text.hash);
     private let leadStatus : HashMap.HashMap<Text, Text> = HashMap.fromIter<Text, Text>(leadStatusEntries.vals(), 10, Text.equal, Text.hash);
@@ -51,13 +48,11 @@ actor class CRM(_name : Text, _creator: Principal) {
 
 
 
-    public shared func getPartner(pid : Text) : async ?Text {
+    public shared func getPartner(pid : Text) : async ?[Text] {
         return partners.get(pid);
     };
 
-    public shared func getPartnerDetails(pid : Text) : async ?[Text] {
-        return partnerDetails.get(pid);
-    };
+    
 
     public shared func getOpportunityByLead(lid : Text) : async ?Text {
         return opportunities.get(lid);
@@ -91,11 +86,22 @@ actor class CRM(_name : Text, _creator: Principal) {
 
     
 
-    public func createPartner(data: Text): async Text {
+    public func createPartner(data: [Text]): async Text {
         var owner = await getCreator();
         let new_pid = Principal.toText(owner) # "__" # Nat.toText(partnerCount);
         partners.put(new_pid, data);
         return new_pid;
+    };
+
+    public func updatePartner(data: [Text], pid: Text): async Bool {
+        var pt = Option.get(partners.get(pid), []);
+        if (pt.size() == 0){
+            return false;
+        };
+        
+        let _res = partners.replace(pid, data);
+        
+        return true;
     };
 
     public func createLead(data: [Text]): async Text {
@@ -232,6 +238,35 @@ actor class CRM(_name : Text, _creator: Principal) {
         return true;
     };
 
+    public func deleteContact(lid: Text): async Bool {
+        var oid = lid # "__op";
+        var cid = lid # "__co";
+        var ld = Option.get(leadStatus.get(lid), "");
+        if (ld == ""){
+            return false;
+        };
+        
+        var opp = Option.get(opportunities.get(lid), "");
+        var oppDt = Option.get(opportunityDetails.get(oid), []);
+        if (opp == "" or oppDt.size() == 0){
+            return false;
+        };
+
+        var ct = Option.get(contactDetails.get(cid), []);
+        if (ct.size() == 0){
+            return false;
+        };
+
+        var _res = contacts.remove(oid);
+        var _res2 = contactDetails.remove(cid);
+        var _res3 = leadStatus.replace(lid, "oppty");
+        
+        
+
+        
+        return true;
+    };
+
     public func createAccountFromOpportunity(data: [Text], lid: Text): async ?Text {
         var oid = lid # "__op";
         var ld = Option.get(leadStatus.get(lid), "");
@@ -278,6 +313,37 @@ actor class CRM(_name : Text, _creator: Principal) {
         return true;
     };
 
+
+    // Must be deleted before contact. But both are to be deleted in pairs.
+    public func deleteAccount(lid: Text): async Bool {
+        var oid = lid # "__op";
+        var aid = lid # "__ac";
+        var ld = Option.get(leadStatus.get(lid), "");
+        if (ld == ""){
+            return false;
+        };
+        
+        var opp = Option.get(opportunities.get(lid), "");
+        var oppDt = Option.get(opportunityDetails.get(oid), []);
+        if (opp == "" or oppDt.size() == 0){
+            return false;
+        };
+
+        var ac = Option.get(accountDetails.get(aid), []);
+        if (ac.size() == 0){
+            return false;
+        };
+
+        var _res = accounts.remove(oid);
+        var _res2 = accountDetails.remove(aid);
+        var _res3 = leadStatus.replace(lid, "cntct");
+        
+        
+
+        
+        return true;
+    };
+
     public func createDeal(data: [Text], oid: Text): async ?Text {
         var oppExists = false;
         var op = Option.get(opportunityDetails.get(oid), []);
@@ -313,7 +379,6 @@ actor class CRM(_name : Text, _creator: Principal) {
 
     system func preupgrade() {
         partnerEntries := Iter.toArray(partners.entries());
-        partnerDetailEntries := Iter.toArray(partnerDetails.entries());
         opportunityEntries := Iter.toArray(opportunities.entries());
         opportunityDetailEntries := Iter.toArray(opportunityDetails.entries());
         leadEntries := Iter.toArray(leads.entries());
@@ -329,7 +394,6 @@ actor class CRM(_name : Text, _creator: Principal) {
 
     system func postupgrade() {
         partnerEntries := [];
-        partnerDetailEntries := [];
         opportunityEntries := [];
         opportunityDetailEntries := [];
         dealEntries := [];
