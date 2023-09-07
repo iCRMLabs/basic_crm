@@ -377,6 +377,21 @@ actor class CRM(_name : Text, _creator: Principal) {
         return true;
     };    
 
+    // Deletes a child deal
+    public func deleteDeal(oid: Text): async Bool {
+        
+        var did = oid # "__dl";
+        
+        var _res = deals.remove(oid);
+        var _res2 = dealDetails.remove(did);
+        
+        
+        
+
+        
+        return true;
+    };
+
     system func preupgrade() {
         partnerEntries := Iter.toArray(partners.entries());
         opportunityEntries := Iter.toArray(opportunities.entries());
